@@ -44,7 +44,7 @@ flowchart LR
 
 ```
 .
-├── LineGuard_Evidence_Bounded_Triage_CSAF.ipynb    # the runnable Colab notebook (sections 1–21)
+├── LineGuard_SecureOps_Assistant.ipynb             # the runnable Colab notebook (sections 1–21)
 ├── README.md                                       # this file
 ├── LINEGUARD_DATASET/                              # corpus (see "Dataset setup"); not committed if large
 │   ├── csaf_files/                                 # cisagov/CSAF advisory JSON tree
@@ -97,7 +97,7 @@ Override any location with the environment variables below.
 
 ## How to run (Google Colab, free T4)
 
-1. Open `LineGuard_Evidence_Bounded_Triage_CSAF.ipynb` in Google Colab and select a GPU runtime (T4 is sufficient).
+1. Open `LineGuard_SecureOps_Assistant.ipynb` in Google Colab and select a GPU runtime (T4 is sufficient).
 2. Put `LINEGUARD_DATASET/` on Google Drive (or in the repo working directory). The first cell mounts Drive.
 3. `Runtime -> Run all`.
 
