@@ -217,5 +217,5 @@ Built only from public, openly licensed OT/ICS security sources:
 - MITRE ATT&CK for ICS — © MITRE, used with attribution
 - MITRE CAPEC — © MITRE, used with attribution
 
-No paywalled or restricted content is included.
+No paywalled or restricted content is included. 
 
