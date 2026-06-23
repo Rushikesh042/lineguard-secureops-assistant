@@ -62,7 +62,7 @@ flowchart LR
 .
 ├── LineGuard_SecureOps_Assistant.ipynb             # runnable Colab notebook, sections 1-17
 ├── README.md                                       # this file
-├── LINEGUARD/                                      # local corpus root; not committed if large
+├── LINEGUARD/                                      # local corpus root; not committed
 │   ├── csaf_files/                                 # cisagov/CSAF clone, searched recursively
 │   ├── cti-master/                                 # mitre/cti clone: CAPEC + ATT&CK for ICS
 │   └── nist/                                       # NIST PDFs
