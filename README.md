@@ -14,7 +14,7 @@ The key design principle is simple: **the LLM improves readability, but the cite
 
 ---
 
-## Why this design
+## Why This Design
 
 A hallucinated security recommendation can be worse than no recommendation. LineGuard is therefore built around strict evidence boundaries:
 
@@ -26,7 +26,7 @@ A hallucinated security recommendation can be worse than no recommendation. Line
 
 ---
 
-## System architecture
+## System Architecture
 
 ```mermaid
 flowchart LR
@@ -48,7 +48,7 @@ flowchart LR
 
 ---
 
-## Tier coverage
+## Tier Coverage
 
 - **Tier 1 — RAG with cited answers.** The notebook ingests local OT/ICS sources, chunks them, embeds them with `BAAI/bge-small-en-v1.5`, retrieves relevant evidence, and answers all brief example questions with source citations. Section 16 demonstrates the local LLM analyst-summary mode over the same deterministic evidence pack.
 - **Tier 2 — improved retrieval and evaluation.** The notebook includes structure-aware chunking, dense + BM25 retrieval, query decomposition, vendor metadata filtering, reranker ablation, corpus EDA, and a retrieval/refusal/hard-edge evaluation harness.
@@ -56,7 +56,7 @@ flowchart LR
 
 ---
 
-## Repository structure
+## Repository Structure
 
 ```text
 .
@@ -80,7 +80,7 @@ flowchart LR
 
 ---
 
-## Dataset setup
+## Dataset Setup
 
 LineGuard is **local-first and corpus-reproducible**. CISA advisories are loaded from local CSAF JSON files; the notebook does not scrape live CISA webpages during submission mode. MITRE and NIST are expected to load from local files in the submitted run; public URLs are present only as fallback paths if local files are missing.
 
@@ -117,7 +117,7 @@ Use `LINEGUARD_DATASET_ROOT`, `CSAF_DIRS` / `CSAF_JSON_DIRS`, `CTI_ROOT`, or `NI
 
 ---
 
-## How to run in Google Colab
+## How to Run in Google Colab
 
 1. Open `LineGuard_SecureOps_Assistant.ipynb` in Google Colab.
 2. Choose **Runtime -> Change runtime type -> T4 GPU**.
@@ -181,7 +181,7 @@ Pipeline components ready: True
 
 ---
 
-## Example questions
+## Example Questions
 
 All five brief-style examples are demonstrated in notebook Section 15 with `ask()` as the single entry point:
 
@@ -195,7 +195,7 @@ Section 14 provides six consolidated demos, and Section 14B adds five agentic ro
 
 ---
 
-## Evaluation results
+## Evaluation Results
 
 Reproduced by a full Run-all in Section 13.
 
@@ -251,7 +251,7 @@ Reranker ablation, Section 13B:
 
 ---
 
-## Tier-3 security results
+## Tier-3 Security Results
 
 Section 13A evaluates route selection, direct prompt injection, indirect prompt injection, internal-data refusal, ambiguous requests, and benign cybersecurity prompts.
 
@@ -273,7 +273,7 @@ The saved run shows that direct prompt-injection attacks were blocked, internal-
 
 ---
 
-## LLM summary preservation
+## LLM Summary Preservation
 
 Section 16B compares the deterministic renderer with the local Qwen analyst-summary mode over the same evidence pack.
 
@@ -286,7 +286,7 @@ This is the intended behaviour: the LLM produces only the short analyst summary;
 
 ---
 
-## AI security reflection
+## AI Security Reflection
 
 Three attack surfaces are explicitly addressed:
 
@@ -308,7 +308,7 @@ The consequence of not handling these risks would be unsafe triage, fabricated A
 
 ---
 
-## Output artifacts
+## Output Artifacts
 
 A full run writes:
 
@@ -327,13 +327,13 @@ outputs/
 
 ---
 
-## AI usage statement
+## AI Usage Statement
 
 AI coding assistants were used for debugging support, refactoring suggestions, documentation wording, and test-case brainstorming. The author engineered, reviewed, adapted, and validated the code, system architecture, evaluation design, and final outputs, and is prepared to explain every implementation and design decision during panel Q&A.
 
 ---
 
-## Corpus attribution and licensing
+## Corpus Attribution and Licensing
 
 Built only from public OT/ICS security sources:
 
