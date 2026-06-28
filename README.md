@@ -24,6 +24,8 @@ A hallucinated security recommendation can be worse than no recommendation. Line
 - **The deterministic card** preserves source lines, evidence labels, refusal boundaries, and hard/no-hard mapping decisions.
 - **Refusals** are produced without relying on the model when the user asks for internal company data or prompt-injection behaviour.
 
+These boundaries are not just asserted — the appended rigorous test suite (see **Robustness and Stress Testing**) cross-checks every `HARD-CITED` ATT&CK technique in a rendered card against the structured bridge output, so a fabricated mapping cannot pass silently (0 / 120 fabricated in the submitted run).
+
 ---
 
 ## System Architecture
@@ -60,19 +62,20 @@ flowchart LR
 
 ```text
 .
-├── LineGuard_SecureOps_Assistant.ipynb             # runnable Colab notebook, sections 1-17
+├── LineGuard_SecureOps_Assistant.ipynb             # runnable Colab notebook, sections 1-17 + rigorous test cells
 ├── README.md                                       # this file
-├── LINEGUARD/                                      # local corpus root; not committed
-│   ├── csaf_files/                                 # cisagov/CSAF clone, searched recursively
-│   ├── cti-master/                                 # mitre/cti clone: CAPEC + ATT&CK for ICS
-│   └── nist/                                       # NIST PDFs
-└── outputs/                                        # produced by Run all
+├── LINEGUARD/                                       # local corpus root; not committed
+│   ├── csaf_files/                                  # cisagov/CSAF clone, searched recursively
+│   ├── cti-master/                                  # mitre/cti clone: CAPEC + ATT&CK for ICS
+│   └── nist/                                        # NIST PDFs
+└── outputs/                                         # produced by Run all
     ├── ablation.json
     ├── corpus_manifest.json
     ├── eval_results.json
     ├── eval_comparison.png
     ├── eda_corpus.png
     ├── retrieval_results.csv
+    ├── rigorous_retrieval.json                      # per-item robustness results (bootstrap CIs)
     └── demo_cards/
         ├── demo_1.md ... demo_6.md
         └── agentic_1.md ... agentic_5.md
@@ -115,6 +118,8 @@ LINEGUARD_DATASET_ROOT -> ./LINEGUARD -> ./data/LINEGUARD -> /content/drive/MyDr
 
 Use `LINEGUARD_DATASET_ROOT`, `CSAF_DIRS` / `CSAF_JSON_DIRS`, `CTI_ROOT`, or `NIST_ROOT` if your paths differ.
 
+> **Reproducibility note.** `cisagov/CSAF` grows over time, so the number of advisories discovered on disk increases with each re-clone. The submitted run indexes a fixed snapshot of **3,785** OT/ICS advisories. To keep a citable, fixed corpus, either keep `MAX_CISA_ADVISORIES` at the snapshot count or pin the clone to a specific commit and record it. The corpus manifest written to `outputs/corpus_manifest.json` captures the exact advisory count and per-file SHA-256 for the submitted run.
+
 ---
 
 ## How to Run in Google Colab
@@ -127,14 +132,14 @@ Use `LINEGUARD_DATASET_ROOT`, `CSAF_DIRS` / `CSAF_JSON_DIRS`, `CTI_ROOT`, or `NI
 A successful run begins with output similar to:
 
 ```text
-mode=submission | fast_demo=0 | min_cisa=50 | max_cisa=175 | card_mode=full | backend=hf_local (Qwen/Qwen2.5-1.5B-Instruct)
+mode=submission | fast_demo=0 | min_cisa=50 | max_cisa=3785 | card_mode=full | backend=hf_local (Qwen/Qwen2.5-1.5B-Instruct)
 Pipeline components ready: True
-[smoke] CSAF advisories discovered: 3769 (submission floor=50) -> OK
-[corpus] CSAF JSON: loaded 175 advisories from 175 candidate file(s)
-[corpus] CAPEC, ATT&CK-ICS, NIST SP 800-82, NIST CSF 2.0 ready; 175 advisories loaded
+[smoke] CSAF advisories discovered: 3785 (submission floor=50) -> OK
+[corpus] CSAF JSON: loaded 3785 advisories from 3785 candidate file(s)
+[corpus] CAPEC, ATT&CK-ICS, NIST SP 800-82, NIST CSF 2.0 ready; 3785 advisories loaded
 ```
 
-**Modes.** `submission` is the default and indexes the most recent local OT/ICS CSAF advisories, capped by `MAX_CISA_ADVISORIES=175` for reproducible Colab runtime. `demo` mode (`LINEGUARD_MODE=demo`) loads only a few advisories and limits NIST pages for fast development.
+**Modes.** `submission` is the default and indexes the most recent local OT/ICS CSAF advisories, capped by `MAX_CISA_ADVISORIES=3785` (the full staged snapshot in the submitted run; set `MAX_CISA_ADVISORIES=0` to index every staged advisory with no cap, or a smaller value for a faster, lighter run). `demo` mode (`LINEGUARD_MODE=demo`) loads only a few advisories and limits NIST pages for fast development.
 
 **LLM behaviour.** The default final notebook uses `LLM_BACKEND=hf_local` and `LLM_MODEL=Qwen/Qwen2.5-1.5B-Instruct`. The LLM writes only a short analyst summary above the deterministic, fully cited card. If the local model is unavailable or unsafe output is detected, LineGuard falls back to the deterministic evidence-bounded renderer. Set `LLM_BACKEND=none` to force deterministic rendering only.
 
@@ -150,7 +155,7 @@ Pipeline components ready: True
 | `CTI_ROOT` | `<root>/cti-master` | Local MITRE CTI clone. |
 | `NIST_ROOT` | `<root>/nist` | Local NIST PDF folder. |
 | `MIN_CISA_ADVISORIES` | `50` | Submission floor; the loader fails loudly below it unless explicitly allowed. |
-| `MAX_CISA_ADVISORIES` | `175` | Advisory cap for reproducible Colab runtime. |
+| `MAX_CISA_ADVISORIES` | `3785` | Advisory cap; submitted run indexes the full staged snapshot (`0` = no cap). |
 | `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | Dense retrieval model. |
 | `DENSE_WEIGHT` | `0.5` | Dense/BM25 fusion weight for the hybrid retriever. |
 | `USE_RERANKER` | `0` | Main pipeline reranker toggle. |
@@ -197,32 +202,35 @@ Section 14 provides six consolidated demos, and Section 14B adds five agentic ro
 
 ## Evaluation Results
 
-Reproduced by a full Run-all in Section 13.
+Reproduced by a full Run-all in Section 13. All values below are from a single run at `MAX_CISA_ADVISORIES=3785`.
 
-Corpus summary from the saved final run:
+Corpus summary (Section 10 `CORPUS SUMMARY` + Section 7 chunk counts):
 
 | Item | Value |
 | --- | ---: |
-| CISA advisories loaded | 175 |
-| Vendors | 82 |
-| CVEs | 804 |
-| Unique CWEs | 171 |
-| Total chunks | 1,161 |
+| CISA advisories loaded | 3,785 |
+| Vendors | 825 |
+| CVEs | 13,651 |
+| Unique CWEs | 453 |
+| Total chunks | 8,380 |
 | NIST SP 800-82 chunks | 652 |
 | NIST CSF chunks | 62 |
-| CISA chunks | 350 |
+| CISA chunks | 7,569 |
 | ATT&CK-for-ICS chunks | 97 |
-| Severity mix | High 74 / Critical 68 / Medium 31 / Low 2 |
+| Severity mix | High 1,793 / Critical 1,092 / Medium 831 / Low 67 / Unknown 2 |
+| Advisory family mix | icsa 3,605 / icsma 180 |
 | `CWE -> ATT&CK` coverage over CAPEC-known CWEs | 149 / 336 = 44.3% |
 
-Main evaluation:
+> The `CWE -> ATT&CK` coverage (44.3%) is a property of the MITRE CAPEC/ATT&CK data, **not** of the advisory set, so it stays fixed regardless of the advisory cap.
+
+Main evaluation (`print_report`):
 
 | Metric | Baseline | LineGuard / improved |
 | --- | ---: | ---: |
-| Retrieval Hit@5 | 0.950 dense-only | 0.850 hybrid |
-| Retrieval MRR | 0.770 dense-only | 0.812 hybrid |
+| Retrieval Hit@5 | 0.800 dense-only | 0.900 hybrid |
+| Retrieval MRR | 0.750 dense-only | 0.825 hybrid |
 | Metadata-filtered Hit@5 | — | **0.950** |
-| Metadata-filtered MRR | — | **0.887** |
+| Metadata-filtered MRR | — | **0.875** |
 | Refusal accuracy | 0.500 | **1.000** |
 | Hard-edge precision | 0.750 | **1.000** |
 | Hard-map recall | — | **1.000** |
@@ -230,24 +238,61 @@ Main evaluation:
 | Injection false-positive rate | — | **0.000** |
 | Citation coverage | — | **1.000** |
 
-Ablation summary:
+Ablation summary (`print_ablation`):
 
 | Configuration | Hit@5 | MRR | Refusal | Citation | Injection blocked |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Dense only | 0.950 | 0.770 | 0.500 | — | 0.000 |
-| Dense + BM25 | 0.850 | 0.812 | 0.500 | — | 0.000 |
-| + metadata filters | 0.950 | 0.887 | 0.500 | — | 0.000 |
-| + evidence-bounded card | 0.950 | 0.887 | 1.000 | 1.000 | 0.000 |
-| + injection guard, full LineGuard | 0.950 | 0.887 | 1.000 | 1.000 | 1.000 |
+| Dense only | 0.800 | 0.750 | 0.500 | — | 0.000 |
+| Dense + BM25 | 0.900 | 0.825 | 0.500 | — | 0.000 |
+| + metadata filters | 0.950 | 0.875 | 0.500 | — | 0.000 |
+| + evidence-bounded card | 0.950 | 0.875 | 1.000 | 1.000 | 0.000 |
+| + injection guard, full LineGuard | 0.950 | 0.875 | 1.000 | 1.000 | 1.000 |
 
 Reranker ablation, Section 13B:
 
 | Configuration | Hit@5 | MRR |
 | --- | ---: | ---: |
-| Hybrid, no reranker | 0.850 | 0.812 |
-| Hybrid + cross-encoder reranker | 0.950 | 0.837 |
+| Hybrid, no reranker | 0.900 | 0.825 |
+| Hybrid + cross-encoder reranker | 0.900 | 0.827 |
 
-**Honest reading.** Dense retrieval is already strong on this corpus. Adding BM25 improves MRR but reduces Hit@5 on the small retrieval test. The strongest retrieval story is metadata filtering, which restores Hit@5 to 0.950 and improves MRR to 0.887. The most defensible gains are in refusal accuracy, hard-edge precision, hard-map recall, prompt-injection resistance, and citation preservation.
+**Honest reading.** On this corpus, adding BM25 to dense retrieval improves both Hit@5 (0.800 -> 0.900) and MRR (0.750 -> 0.825), and metadata filtering pushes Hit@5 to 0.950 (MRR 0.875). The cross-encoder reranker yields a negligible MRR change (0.825 -> 0.827) and no Hit@5 gain, so it is left off by default and reported as an ablation only. The most defensible gains are in refusal accuracy, hard-edge precision, hard-map recall, prompt-injection resistance, and citation preservation — safety properties rather than raw retrieval scores, which the Robustness section below stress-tests at scale with confidence intervals.
+
+---
+
+## Robustness and Stress Testing
+
+Beyond the small built-in §13 harness, an appended rigorous test suite (Part A/B) measures retrieval with bootstrap confidence intervals and asserts four correctness contracts, on the same 3,785-advisory corpus (sample = 150 advisories).
+
+Retrieval fidelity (95% bootstrap CIs, sample = 150, k = 5):
+
+| Probe | Hit@5 | MRR |
+| --- | ---: | ---: |
+| Lexical (title-based, index-integrity sanity) | 0.900 `[0.847, 0.947]` | 0.757 `[0.698, 0.816]` |
+| Semantic (vendor + CWE, no title leak) | 0.847 `[0.787, 0.900]` | 0.706 `[0.640, 0.768]` |
+
+Subgroup semantic Hit@5 (bias check):
+
+| Subgroup | Hit@5 | n |
+| --- | ---: | ---: |
+| Critical | 0.816 `[0.714, 0.918]` | 49 |
+| High | 0.881 `[0.797, 0.966]` | 59 |
+| Medium | 0.829 `[0.707, 0.951]` | 41 |
+| Low | 1.000 | 1 |
+| Siemens | 0.828 `[0.690, 0.966]` | 29 |
+| non-Siemens | 0.851 `[0.785, 0.909]` | 121 |
+
+Siemens vs non-Siemens confidence intervals overlap, so there is no evidence of vendor bias despite the corpus skew.
+
+Correctness contracts (model-independent invariants; all asserted):
+
+| Contract | Result |
+| --- | --- |
+| C1 — deterministic renderer is byte-stable | PASS |
+| C2 — no fabricated hard mapping (every `HARD-CITED` ATT&CK technique present in the structured bridge output) | PASS (0 / 120 fabricated) |
+| C3 — honesty contract (out-of-corpus queries refuse or bind nothing) | PASS |
+| C4 — injection (blatant recall 1.00, benign false-positive 0.00, subtle recall 1.00) | PASS |
+
+**Known limitation surfaced by testing.** Paraphrase invariance — whether three rephrasings of the same advisory return the same rank-1 result — is **0.650 `[0.533, 0.767]`**. The correct advisory is usually within the top 5 (Hit@5 ≈ 0.85) but not always at rank 1 on the fuzzy semantic path. This affects only the semantic retrieval convenience path; exact CVE / CWE / advisory-id and named-vendor queries resolve deterministically and are unaffected.
 
 ---
 
@@ -269,7 +314,7 @@ Section 13A evaluates route selection, direct prompt injection, indirect prompt 
 | Attack success after guard | 0.000 |
 | Citation requirement preserved | True |
 
-The saved run shows that direct prompt-injection attacks were blocked, internal-data requests were refused, benign cybersecurity queries had zero false positives, and every poisoned document that reached retrieval was quarantined before generation.
+The saved run shows that all direct prompt-injection attacks were blocked, all internal-data requests were refused, benign cybersecurity queries had zero false positives, and every poisoned document that reached retrieval was quarantined before generation.
 
 ---
 
@@ -280,9 +325,9 @@ Section 16B compares the deterministic renderer with the local Qwen analyst-summ
 | Backend | Card grounding preserved | Citation preservation | Latency | Failure mode |
 | --- | --- | ---: | ---: | --- |
 | Deterministic renderer, `LLM_BACKEND=none` | 1.00 | 1.00 | low | less fluent prose |
-| Qwen summary + deterministic card, `hf_local` | 1.00, card preserved | 1.00 | 2.2s | summary generated successfully or safely cleaned |
+| Qwen summary + deterministic card, `hf_local` | 1.00, card preserved | 1.00 | 2.5s | summary generated successfully or safely cleaned |
 
-This is the intended behaviour: the LLM produces only the short analyst summary; the deterministic evidence-bounded card remains unchanged and fully cited.
+This is the intended behaviour: the LLM produces only the short analyst summary; the deterministic evidence-bounded card remains unchanged and fully cited. The C2 contract above proves this preservation holds at scale, not just in the demo.
 
 ---
 
@@ -301,8 +346,9 @@ The consequence of not handling these risks would be unsafe triage, fabricated A
 ## Limitations
 
 - The `CWE -> CAPEC -> ATT&CK` hard bridge covers 44.3% of CAPEC-known CWEs in the loaded MITRE data; unsupported CWEs are reported as no hard mapping rather than guessed.
-- The advisory corpus is capped at 175 advisories by default for reproducible Colab runtime.
-- The evaluation set is intentionally small for hackathon runtime; the metrics demonstrate direction and safety behaviour, not production-scale statistical confidence.
+- The submitted run indexes the full staged snapshot of 3,785 advisories (`MAX_CISA_ADVISORIES=3785`); set it to `0` to index all staged advisories or to a smaller value for a faster run. Because `cisagov/CSAF` grows over time, a fixed cap (or a pinned commit) is what keeps the corpus citable across re-clones.
+- Semantic retrieval is phrasing-sensitive: top-1 paraphrase agreement is ≈0.65 while Hit@5 stays ≈0.85, so the correct advisory is usually but not always rank 1. Exact CVE/CWE/advisory-id and named-vendor routing is deterministic and unaffected.
+- The built-in §13 evaluation set is intentionally small for hackathon runtime and demonstrates direction and safety behaviour; the appended Robustness suite adds larger-sample retrieval metrics with bootstrap confidence intervals, but this is still not production-scale statistical validation.
 - The local LLM writer depends on the selected open model and runtime memory; deterministic rendering remains available through `LLM_BACKEND=none`.
 - Metadata-filtered vendor summaries are hard-cited from loaded advisory fields, but final patch prioritisation still requires internal asset/version/reachability validation.
 
@@ -320,6 +366,7 @@ outputs/
 ├── eval_comparison.png
 ├── eval_results.json
 ├── retrieval_results.csv
+├── rigorous_retrieval.json
 └── demo_cards/
     ├── agentic_1.md ... agentic_5.md
     └── demo_1.md ... demo_6.md
